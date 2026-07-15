@@ -182,7 +182,7 @@ class Player {
     this.x=WORLD.width/2; this.y=WORLD.height/2; this.maxHp=100; this.hp=100; this.baseSpeed=180; this.damage=10;
     this.attackInterval=.8; this.projectileCount=1; this.projectileSpeed=350; this.projectileScale=1; this.projectileLife=1.2;
     this.magnetRange=50; this.baseRadius=6; this.currentScale=1; this.targetScale=1; this.bodySpeedMultiplier=1; this.bodyStage=0; this.maxBodyStage=0;
-    this.level=1; this.xp=0; this.attackTimer=.35; this.invincible=0; this.walkTime=0; this.lastMoving=false; this.eatPulse=0;
+    this.level=1; this.xp=0; this.bodyProgress=0; this.attackTimer=.35; this.invincible=0; this.walkTime=0; this.lastMoving=false; this.eatPulse=0;
     this.upgradeLevels={}; this.pendingLevels=0;
   }
   get requiredXp() { return Math.round(10*Math.pow(1.25,this.level-1)); }
@@ -196,12 +196,12 @@ class Player {
     const r=this.collisionRadius; this.x=clamp(this.x,r,WORLD.width-r); this.y=clamp(this.y,37+r,WORLD.height-12-r);
   }
   updateBodyStage(game) {
-    const progress=clamp(this.xp/this.requiredXp,0,.999); let next=0;
+    const progress=clamp(this.bodyProgress/this.requiredXp,0,.999); let next=0;
     for(let i=BODY_STAGES.length-1;i>=0;i--) if(progress>=BODY_STAGES[i].min){next=i;break;}
     if(next!==this.bodyStage){this.bodyStage=next;this.maxBodyStage=Math.max(this.maxBodyStage,next);game.onBodyStageChanged(BODY_STAGES[next]);}
     const stage=BODY_STAGES[this.bodyStage]; this.targetScale=stage.scale; this.bodySpeedMultiplier=stage.speed;
   }
-  digest() { this.bodyStage=0; this.targetScale=1; this.bodySpeedMultiplier=1; }
+  digest() { this.bodyProgress=0; this.bodyStage=0; this.currentScale=1; this.targetScale=1; this.bodySpeedMultiplier=1; this.eatPulse=0; }
   draw(ctx) { const frame=this.lastMoving?Math.floor(this.walkTime)%2:0; const hurt=this.invincible>0&&Math.floor(this.invincible*18)%2===0; SpriteRenderer.player(ctx,this.x,this.y,this.currentScale,frame,hurt); }
 }
 
@@ -328,7 +328,7 @@ class Game {
   }
   collectFood(food){
     this.audio.play("eat");this.player.eatPulse=.14;this.pixelBurst(this.player.x,this.player.y,"#ffd45e",4);this.floatText(this.player.x,this.player.y-10,Math.random()<.5?"냠!":"+EXP","#fff1a8");
-    this.player.xp+=food.value;while(this.player.xp>=this.player.requiredXp){this.player.xp-=this.player.requiredXp;this.player.level++;this.player.pendingLevels++;}
+    this.player.xp+=food.value;this.player.bodyProgress+=food.value;while(this.player.xp>=this.player.requiredXp){this.player.xp-=this.player.requiredXp;this.player.level++;this.player.pendingLevels++;}
     if(this.player.pendingLevels>0)this.beginLevelUp();else this.player.updateBodyStage(this);
   }
   onBodyStageChanged(stage){if(this.player.bodyStage===0)return;this.showToast(stage.message,1.7);this.shake=2.5;this.audio.play("grow");}
@@ -343,7 +343,7 @@ class Game {
   makeUpgradeIcon(colors){const icon=document.createElement("span");icon.className="upgrade-icon";for(let i=0;i<64;i++){const pixel=document.createElement("i"),x=i%8,y=Math.floor(i/8);if((x===3||x===4)||(y>=2&&y<=5&&x>=2&&x<=5)){pixel.style.background=(x+y)%2?colors[0]:colors[1];}icon.appendChild(pixel);}return icon;}
   selectUpgrade(upgrade){if(this.state!==GAME_STATE.LEVEL_UP||this.levelChoiceLocked)return;this.levelChoiceLocked=true;this.ui.upgradeCards.querySelectorAll("button").forEach(button=>button.disabled=true);this.upgrades.apply(this.player,upgrade);this.audio.play("upgrade");setTimeout(()=>this.completeUpgrade(upgrade),120);}
   completeUpgrade(){
-    this.player.pendingLevels=Math.max(0,this.player.pendingLevels-1);this.player.digest();this.player.currentScale=Math.max(this.player.currentScale,1.15);this.audio.play("digest");this.showToast("소화 완료!",1.3);this.ui.levelUpScreen.classList.add("hidden");
+    this.player.pendingLevels=Math.max(0,this.player.pendingLevels-1);this.player.digest();this.audio.play("digest");this.showToast("소화 완료!",1.3);this.ui.levelUpScreen.classList.add("hidden");
     if(this.player.pendingLevels>0){setTimeout(()=>this.beginNextQueuedLevel(),180);}else{this.state=GAME_STATE.PLAYING;this.player.updateBodyStage(this);this.lastTime=performance.now();}
   }
   beginNextQueuedLevel(){this.state=GAME_STATE.PLAYING;this.beginLevelUp();}
