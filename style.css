@@ -173,7 +173,7 @@ h2 { font-size: 26px; line-height: 1.25; }
 .result-upgrades i { padding: 5px 7px; font-size: 11px; }
 .result-actions { margin-top: 8px; }
 
-.joystick { left: 18px; bottom: 44px; width: 80px; height: 80px; border-width: 3px; box-shadow: inset 0 0 0 9px #ffffff08; }
+.joystick { left: 50%; right: auto; bottom: calc(44px + env(safe-area-inset-bottom, 0px)); width: 80px; height: 80px; transform: translateX(-50%); border-width: 3px; box-shadow: inset 0 0 0 9px #ffffff08; }
 .joystick i { left: calc(50% - 16px); top: calc(50% - 16px); width: 32px; height: 32px; border-width: 3px; }
 .toast { top: 23%; max-width: 90%; padding: 10px 14px; border-width: 3px; font-size: 14px; line-height: 1.4; white-space: pre-line; word-break: keep-all; }
 
