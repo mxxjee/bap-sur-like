@@ -85,7 +85,7 @@ class FeedbackManager {
     this.activeModal = this.feedbackModal;
     this.feedbackModal.classList.remove("hidden");
     this.onOpen();
-    this.status.textContent = this.connected ? "" : "현재 평가 저장 기능이 연결되지 않았습니다.";
+    this.status.textContent = this.connected ? "" : "현재 평가 저장 기능이\n연결되지 않았습니다.";
     this.comment.focus({ preventScroll: true });
   }
 
@@ -112,7 +112,7 @@ class FeedbackManager {
       button.classList.toggle("active", active);
       button.setAttribute("aria-checked", String(index + 1 === this.rating));
     });
-    this.status.textContent = this.connected ? "" : "현재 평가 저장 기능이 연결되지 않았습니다.";
+    this.status.textContent = this.connected ? "" : "현재 평가 저장 기능이\n연결되지 않았습니다.";
   }
 
   validate() {
@@ -155,7 +155,7 @@ class FeedbackManager {
     } catch (error) {
       this.storePending(record);
       this.status.textContent = error.message === "not-configured"
-        ? "현재 평가 저장 기능이 연결되지 않았습니다. 의견을 이 기기에 임시 저장했습니다."
+        ? "현재 평가 저장 기능이\n연결되지 않았습니다.\n의견을 이 기기에 임시 저장했습니다."
         : "전송에 실패해 의견을 이 기기에 임시 저장했습니다.";
     } finally {
       this.submitting = false;
@@ -191,7 +191,7 @@ class FeedbackManager {
 
   async refreshSummary() {
     if (!this.connected || !this.client) {
-      this.setMenuSummary(null, 0, "평가 서버가 연결되지 않았습니다.");
+      this.setMenuSummary(null, 0, "평가 서버가\n연결되지 않았습니다.");
       return;
     }
     try {
@@ -209,14 +209,14 @@ class FeedbackManager {
     const text = this.menuSummary.querySelector("b");
     if (average === null) { stars.textContent = "☆☆☆☆☆"; text.textContent = fallback; return; }
     stars.textContent = `${"★".repeat(Math.round(average))}${"☆".repeat(5 - Math.round(average))}`;
-    text.textContent = count ? `${average.toFixed(1)} · 평가 ${count}개` : "아직 등록된 평가가 없습니다.";
+    text.textContent = count ? `${average.toFixed(1)} · 평가 ${count}개` : "아직 등록된 평가가\n없습니다.";
   }
 
   async loadReviews() {
     this.reviewList.replaceChildren();
     if (!this.connected || !this.client) {
-      this.reviewSummary.replaceChildren(this.makeText("strong", "☆☆☆☆☆"), this.makeText("span", "평가 서버가 연결되지 않았습니다."));
-      this.reviewList.appendChild(this.makeText("p", "평가 서버가 연결되지 않았습니다."));
+      this.reviewSummary.replaceChildren(this.makeText("strong", "☆☆☆☆☆"), this.makeText("span", "평가 서버가\n연결되지 않았습니다."));
+      this.reviewList.appendChild(this.makeText("p", "평가 서버가\n연결되지 않았습니다."));
       return;
     }
     this.reviewList.appendChild(this.makeText("p", "평가를 불러오는 중…"));
@@ -224,12 +224,12 @@ class FeedbackManager {
       const { data, error } = await this.client.from("feedback").select("rating, comment, created_at").order("created_at", { ascending: false }).limit(10);
       if (error) throw error;
       this.reviewList.replaceChildren();
-      if (!data?.length) this.reviewList.appendChild(this.makeText("p", "아직 등록된 평가가 없습니다."));
+      if (!data?.length) this.reviewList.appendChild(this.makeText("p", "아직 등록된 평가가\n없습니다."));
       else data.forEach(review => this.reviewList.appendChild(this.createReviewItem(review)));
       const average = data?.length ? data.reduce((sum, item) => sum + Number(item.rating), 0) / data.length : 0;
-      this.reviewSummary.replaceChildren(this.makeText("strong", data?.length ? `${"★".repeat(Math.round(average))}${"☆".repeat(5 - Math.round(average))}` : "☆☆☆☆☆"), this.makeText("span", data?.length ? `최근 평가 평균 ${average.toFixed(1)}점` : "아직 등록된 평가가 없습니다."));
+      this.reviewSummary.replaceChildren(this.makeText("strong", data?.length ? `${"★".repeat(Math.round(average))}${"☆".repeat(5 - Math.round(average))}` : "☆☆☆☆☆"), this.makeText("span", data?.length ? `최근 평가 평균 ${average.toFixed(1)}점` : "아직 등록된 평가가\n없습니다."));
     } catch (_) {
-      this.reviewList.replaceChildren(this.makeText("p", "평가를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."));
+      this.reviewList.replaceChildren(this.makeText("p", "평가를 불러오지 못했습니다.\n잠시 후 다시 시도해 주세요."));
     }
   }
 

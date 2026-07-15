@@ -19,6 +19,11 @@ const formatTime = (seconds) => {
   const safe = Math.max(0, Math.ceil(seconds));
   return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
 };
+const drawMultilineText = (ctx, text, x, y, lineHeight = 7) => {
+  const lines = String(text).split("\n");
+  const startY = y - (lines.length - 1) * lineHeight / 2;
+  lines.forEach((line, index) => ctx.fillText(line, x, startY + index * lineHeight));
+};
 
 /** 사용자 입력 뒤에만 Web Audio를 깨우고 짧은 8비트풍 효과음을 합성한다. */
 class AudioManager {
@@ -115,7 +120,7 @@ class Particle {
   update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.vx *= .94; this.vy *= .94; this.life -= dt; }
   draw(ctx) {
     ctx.globalAlpha = clamp(this.life / this.maxLife, 0, 1); ctx.fillStyle = this.color;
-    if (this.text) { ctx.font = "bold 6px monospace"; ctx.textAlign = "center"; ctx.fillText(this.text, Math.round(this.x), Math.round(this.y)); }
+    if (this.text) { ctx.font = "bold 6px monospace"; ctx.textAlign = "center"; drawMultilineText(ctx,this.text,Math.round(this.x),Math.round(this.y)); }
     else ctx.fillRect(Math.round(this.x), Math.round(this.y), this.size, this.size);
     ctx.globalAlpha = 1;
   }
@@ -170,9 +175,9 @@ class Enemy {
 
 const BODY_STAGES = Object.freeze([
   { name:"가벼움", min:0, scale:1, speed:1, message:"" },
-  { name:"배부름", min:.25, scale:1.15, speed:.9, message:"배가 차오르기 시작합니다." },
-  { name:"과식", min:.5, scale:1.35, speed:.78, message:"몸이 무거워집니다!" },
-  { name:"초거대", min:.75, scale:1.6, speed:.65, message:"레벨업이 얼마 남지 않았습니다!" }
+  { name:"배부름", min:.25, scale:1.15, speed:.9, message:"배가 차오르기\n시작합니다." },
+  { name:"과식", min:.5, scale:1.35, speed:.78, message:"몸이\n무거워집니다!" },
+  { name:"초거대", min:.75, scale:1.6, speed:.65, message:"레벨업이\n얼마 남지 않았습니다!" }
 ]);
 
 /** 영구 능력치와 현재 레벨의 임시 몸집/속도 배율을 분리해 관리한다. */
@@ -191,7 +196,7 @@ class Player {
   update(dt,input) {
     this.invincible=Math.max(0,this.invincible-dt); this.eatPulse=Math.max(0,this.eatPulse-dt*4);
     const length=Math.hypot(input.x,input.y); this.lastMoving=length>.05;
-    if(this.lastMoving){const x=input.x/(length||1),y=input.y/(length||1);this.x+=x*this.moveSpeed*dt;this.y+=y*this.moveSpeed*dt;this.walkTime+=dt*(7/this.targetScale);}
+    if(this.lastMoving){const intensity=Math.min(1,length),x=input.x/(length||1),y=input.y/(length||1);this.x+=x*this.moveSpeed*intensity*dt;this.y+=y*this.moveSpeed*intensity*dt;this.walkTime+=dt*(7/this.targetScale)*intensity;}
     this.currentScale += (this.targetScale + this.eatPulse - this.currentScale)*Math.min(1,dt*9);
     const r=this.collisionRadius; this.x=clamp(this.x,r,WORLD.width-r); this.y=clamp(this.y,37+r,WORLD.height-12-r);
   }
@@ -206,14 +211,14 @@ class Player {
 }
 
 const UPGRADES = Object.freeze([
-  { id:"damage", name:"날카로운 포크", description:"공격력이 25% 증가합니다.", max:8, colors:["#dce8e8","#f5fafa"], apply:p=>p.damage*=1.25 },
-  { id:"haste", name:"빠른 식사", description:"공격 간격이 15% 감소합니다.", max:8, colors:["#f0714f","#ffd05e"], apply:p=>p.attackInterval=Math.max(.2,p.attackInterval*.85) },
-  { id:"count", name:"포크 한 개 더", description:"한 번에 발사하는 포크가 1개 늘어납니다.", max:4, colors:["#dce8e8","#9cc8d6"], apply:p=>p.projectileCount=Math.min(5,p.projectileCount+1) },
-  { id:"size", name:"커다란 포크", description:"투사체 크기가 20% 증가합니다.", max:6, colors:["#e9ecdf","#b0a7dc"], apply:p=>p.projectileScale*=1.2 },
-  { id:"stomach", name:"튼튼한 위장", description:"최대 체력과 현재 체력이 15 증가합니다.", max:8, colors:["#e96a70","#ffd45e"], apply:p=>{p.maxHp+=15;p.hp+=15;} },
-  { id:"speed", name:"가벼운 발걸음", description:"기본 이동 속도가 8% 증가합니다.", max:8, colors:["#65d58b","#e8e0ae"], apply:p=>p.baseSpeed*=1.08 },
-  { id:"heal", name:"급속 소화", description:"현재 체력을 30 회복합니다.", max:99, colors:["#73d69a","#fff1c7"], apply:p=>p.hp=Math.min(p.maxHp,p.hp+30) },
-  { id:"magnet", name:"자석 식사", description:"음식 조각 흡수 범위가 25% 증가합니다.", max:6, colors:["#9a72db","#ef77a8"], apply:p=>p.magnetRange*=1.25 }
+  { id:"damage", name:"날카로운 포크", description:"공격력이\n25% 증가합니다.", max:8, colors:["#dce8e8","#f5fafa"], apply:p=>p.damage*=1.25 },
+  { id:"haste", name:"빠른 식사", description:"공격 간격이\n15% 감소합니다.", max:8, colors:["#f0714f","#ffd05e"], apply:p=>p.attackInterval=Math.max(.2,p.attackInterval*.85) },
+  { id:"count", name:"포크 한 개 더", description:"한 번에 발사하는\n포크가 1개 증가합니다.", max:4, colors:["#dce8e8","#9cc8d6"], apply:p=>p.projectileCount=Math.min(5,p.projectileCount+1) },
+  { id:"size", name:"커다란 포크", description:"투사체 크기가\n20% 증가합니다.", max:6, colors:["#e9ecdf","#b0a7dc"], apply:p=>p.projectileScale*=1.2 },
+  { id:"stomach", name:"튼튼한 위장", description:"최대 체력과 현재 체력이\n15 증가합니다.", max:8, colors:["#e96a70","#ffd45e"], apply:p=>{p.maxHp+=15;p.hp+=15;} },
+  { id:"speed", name:"가벼운 발걸음", description:"기본 이동 속도가\n8% 증가합니다.", max:8, colors:["#65d58b","#e8e0ae"], apply:p=>p.baseSpeed*=1.08 },
+  { id:"heal", name:"급속 소화", description:"현재 체력을\n30 회복합니다.", max:99, colors:["#73d69a","#fff1c7"], apply:p=>p.hp=Math.min(p.maxHp,p.hp+30) },
+  { id:"magnet", name:"자석 식사", description:"경험치 조각을 끌어당기는\n범위가 25% 증가합니다.", max:6, colors:["#9a72db","#ef77a8"], apply:p=>p.magnetRange*=1.25 }
 ]);
 
 /** 중복 없는 강화 후보와 최대 단계 예외 처리를 담당한다. */
@@ -234,7 +239,7 @@ class VirtualJoystick {
     this.element.addEventListener("pointermove",e=>{if(e.pointerId!==this.pointerId)return;this.move(e);e.preventDefault();});
     ["pointerup","pointercancel","lostpointercapture"].forEach(type=>this.element.addEventListener(type,e=>{if(e.pointerId===this.pointerId)this.reset();}));
   }
-  move(e){const rect=this.element.getBoundingClientRect(),x=e.clientX-(rect.left+rect.width/2),y=e.clientY-(rect.top+rect.height/2),length=Math.hypot(x,y)||1,max=17,amount=Math.min(max,length);this.vector={x:x/length,y:y/length};this.knob.style.transform=`translate(${x/length*amount}px,${y/length*amount}px)`;}
+  move(e){const rect=this.element.getBoundingClientRect(),knobRect=this.knob.getBoundingClientRect(),x=e.clientX-(rect.left+rect.width/2),y=e.clientY-(rect.top+rect.height/2),distance=Math.hypot(x,y),directionX=distance?x/distance:0,directionY=distance?y/distance:0,max=Math.max(1,(Math.min(rect.width,rect.height)-Math.max(knobRect.width,knobRect.height))/2),deadzone=max*.18,amount=Math.min(max,distance),intensity=distance<=deadzone?0:clamp((amount-deadzone)/(max-deadzone),0,1);this.vector={x:directionX*intensity,y:directionY*intensity};this.knob.style.transform=`translate(${directionX*amount}px,${directionY*amount}px)`;}
   reset(){this.pointerId=null;this.vector={x:0,y:0};this.knob.style.transform="translate(0,0)";}
 }
 
@@ -350,7 +355,7 @@ class Game {
   finish(victory){
     this.state=victory?GAME_STATE.VICTORY:GAME_STATE.GAME_OVER;this.lastResult=victory?"victory":"defeat";this.ui.hud.classList.add("hidden");this.ui.joystick.classList.add("hidden");this.joystick.reset();
     this.ui.toast.classList.add("hidden");this.toastTimer=0;
-    document.getElementById("resultKicker").textContent=victory?"VICTORY!":"GAME OVER";document.getElementById("resultTitle").textContent=victory?"무한리필에서 살아남았습니다!":"배가 터지기 전에 쓰러졌습니다!";
+    document.getElementById("resultKicker").textContent=victory?"VICTORY!":"GAME OVER";document.getElementById("resultTitle").textContent=victory?"무한리필에서\n살아남았습니다!":"배가 터지기 전에\n쓰러졌습니다!";
     document.getElementById("resultTime").textContent=formatTime(victory?WORLD.duration:this.elapsed);document.getElementById("resultKills").textContent=String(this.kills);document.getElementById("resultLevel").textContent=String(this.player.level);document.getElementById("resultBody").textContent=BODY_STAGES[this.player.maxBodyStage].name;
     const list=document.getElementById("resultUpgrades");list.replaceChildren();const selected=Object.entries(this.player.upgradeLevels);if(!selected.length){const empty=document.createElement("i");empty.textContent="선택한 강화 없음";list.appendChild(empty);}else selected.forEach(([id,level])=>{const tag=document.createElement("i"),upgrade=UPGRADES.find(item=>item.id===id);tag.textContent=`${upgrade.name} Lv.${level}`;list.appendChild(tag);});
     this.drawResultIcon(victory);this.ui.resultScreen.classList.remove("hidden");this.audio.play(victory?"victory":"defeat");
