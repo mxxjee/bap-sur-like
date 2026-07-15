@@ -1,0 +1,9 @@
+# 로컬 Supabase 연결 정보 (Publishable/anon key만 사용)
+supabase-config.js
+
+# 운영체제와 편집기 임시 파일
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

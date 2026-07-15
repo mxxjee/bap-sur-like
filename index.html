@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0e0a18" />
+    <meta name="description" content="음식 몬스터를 물리치고 먹으며 커지는 모바일 세로형 생존 액션 게임, 밥서라이크" />
+    <title>밥서라이크 — 먹고, 커지고, 살아남아라!</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main id="app" class="app-shell">
+      <div id="gameViewport" class="game-viewport" aria-label="밥서라이크 게임 화면">
+        <canvas id="gameCanvas" width="225" height="400"></canvas>
+
+        <section id="hud" class="hud hidden" aria-label="게임 정보">
+          <div class="hud-top">
+            <div class="hp-wrap pixel-panel"><span class="hud-label">HP</span><div class="meter"><i id="hpFill"></i></div><strong id="hpText">100</strong></div>
+            <button id="soundToggle" class="square-button" type="button" aria-label="사운드 켜기" aria-pressed="false"><span aria-hidden="true">♪</span></button>
+            <button id="pauseToggle" class="square-button" type="button" aria-label="일시 정지"><span aria-hidden="true">Ⅱ</span></button>
+          </div>
+          <div class="hud-stats pixel-panel">
+            <span>LV <strong id="levelText">1</strong></span>
+            <span id="timeText">03:00</span>
+            <span>처치 <strong id="killText">0</strong></span>
+            <span id="bodyStageText">가벼움</span>
+          </div>
+          <div class="xp-wrap">
+            <div class="meter xp-meter"><i id="xpFill"></i><b id="xpText">0 / 10</b></div>
+            <small>먹을수록 커지고 느려집니다!</small>
+          </div>
+        </section>
+
+        <section id="menuScreen" class="screen menu-screen" aria-labelledby="gameTitle">
+          <div class="menu-rays" aria-hidden="true"></div>
+          <div class="logo-block">
+            <div class="pixel-bowl" aria-hidden="true"><i></i><i></i><i></i></div>
+            <p class="kicker">PIXEL FOOD SURVIVAL</p>
+            <h1 id="gameTitle">밥서라이크</h1>
+            <p class="subtitle">먹고, 커지고, 살아남아라!</p>
+          </div>
+          <div class="menu-copy">
+            <p>음식 몬스터를 처치하고 <b>3분</b> 동안 살아남으세요.</p>
+            <p>조각을 먹을수록 커지고 느려집니다.</p>
+            <p>레벨업하면 강화와 함께 다시 가벼워집니다!</p>
+          </div>
+          <div class="menu-actions">
+            <button id="startButton" class="pixel-button primary" type="button">게임 시작</button>
+            <button id="controlsButton" class="pixel-button" type="button">조작 방법</button>
+            <div class="button-row">
+              <button class="pixel-button small feedback-open" type="button">의견 남기기</button>
+              <button id="reviewsButton" class="pixel-button small" type="button">평가 보기</button>
+            </div>
+          </div>
+          <button id="ratingSummary" class="rating-summary" type="button"><span class="stars">☆☆☆☆☆</span><b>평가 서버 확인 중…</b></button>
+          <p class="version">v1.0.0</p>
+        </section>
+
+        <section id="controlsScreen" class="screen dim-screen hidden" aria-labelledby="controlsTitle">
+          <div class="dialog pixel-panel">
+            <p class="kicker">HOW TO PLAY</p>
+            <h2 id="controlsTitle">조작 방법</h2>
+            <div class="control-grid">
+              <div class="key-art" aria-hidden="true"><span>W</span><span>A</span><span>S</span><span>D</span></div>
+              <div><b>PC</b><p>WASD 또는 방향키로 이동<br />ESC / P로 일시 정지</p></div>
+              <div class="stick-art" aria-hidden="true"><i></i></div>
+              <div><b>모바일</b><p>가상 조이스틱을 드래그하여 이동</p></div>
+            </div>
+            <p class="tip">포크는 가장 가까운 음식 몬스터를 향해 자동 발사됩니다.</p>
+            <button class="pixel-button primary back-menu" type="button">확인</button>
+          </div>
+        </section>
+
+        <section id="levelUpScreen" class="screen level-screen hidden" aria-labelledby="levelUpTitle">
+          <div class="level-glow" aria-hidden="true"></div>
+          <p class="kicker">LEVEL UP!</p>
+          <h2 id="levelUpTitle">하나를 선택하고<br />다시 가볍게 출발하세요.</h2>
+          <div id="upgradeCards" class="upgrade-cards"></div>
+          <p class="number-hint">숫자키 1 · 2 · 3으로도 선택할 수 있어요.</p>
+        </section>
+
+        <section id="pauseScreen" class="screen dim-screen hidden" aria-labelledby="pauseTitle">
+          <div class="dialog pixel-panel pause-dialog">
+            <p class="kicker">PAUSED</p><h2 id="pauseTitle">잠시 쉬어가기</h2>
+            <button id="resumeButton" class="pixel-button primary" type="button">계속하기</button>
+            <button id="restartPauseButton" class="pixel-button" type="button">다시 시작</button>
+            <button class="pixel-button back-menu" type="button">메인 화면</button>
+          </div>
+        </section>
+
+        <section id="resultScreen" class="screen result-screen hidden" aria-labelledby="resultTitle">
+          <p id="resultKicker" class="kicker">RESULT</p>
+          <h2 id="resultTitle">무한리필에서 살아남았습니다!</h2>
+          <div id="resultIcon" class="result-icon" aria-hidden="true"></div>
+          <div class="result-stats pixel-panel">
+            <div><span>생존 시간</span><b id="resultTime">00:00</b></div>
+            <div><span>처치 수</span><b id="resultKills">0</b></div>
+            <div><span>최종 레벨</span><b id="resultLevel">1</b></div>
+            <div><span>최대 몸집</span><b id="resultBody">가벼움</b></div>
+          </div>
+          <div class="result-upgrades"><span>선택한 강화</span><div id="resultUpgrades"></div></div>
+          <div class="menu-actions result-actions">
+            <button id="restartResultButton" class="pixel-button primary" type="button">다시 시작</button>
+            <button class="pixel-button back-menu" type="button">메인 화면</button>
+            <div class="button-row"><button class="pixel-button small feedback-open" type="button">의견 남기기</button><button class="pixel-button small reviews-open" type="button">평가 보기</button></div>
+          </div>
+        </section>
+
+        <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+        <div id="joystick" class="joystick hidden" aria-label="이동 조이스틱"><i id="joystickKnob"></i></div>
+
+        <section id="feedbackModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+          <div class="modal-card pixel-panel">
+            <button class="modal-close" type="button" aria-label="닫기">×</button>
+            <p class="kicker">YOUR REVIEW</p><h2 id="feedbackTitle">의견 남기기</h2>
+            <p class="modal-lead">게임을 플레이한 의견을 자유롭게 남겨주세요.</p>
+            <div id="ratingInput" class="star-input" role="radiogroup" aria-label="별점">
+              <button type="button" data-rating="1" aria-label="1점">★</button><button type="button" data-rating="2" aria-label="2점">★</button><button type="button" data-rating="3" aria-label="3점">★</button><button type="button" data-rating="4" aria-label="4점">★</button><button type="button" data-rating="5" aria-label="5점">★</button>
+            </div>
+            <label class="comment-label" for="feedbackComment">의견 <span><b id="commentCount">0</b> / 500</span></label>
+            <textarea id="feedbackComment" maxlength="500" rows="5" placeholder="재미있었던 점이나 개선할 점을 알려주세요."></textarea>
+            <p id="feedbackStatus" class="form-status" aria-live="polite"></p>
+            <div class="modal-actions"><button class="pixel-button modal-close-button" type="button">닫기</button><button id="feedbackSubmit" class="pixel-button primary" type="button">보내기</button></div>
+          </div>
+        </section>
+
+        <section id="reviewsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="reviewsTitle">
+          <div class="modal-card pixel-panel review-card">
+            <button class="modal-close" type="button" aria-label="닫기">×</button>
+            <p class="kicker">PLAYER REVIEWS</p><h2 id="reviewsTitle">다른 사람의 평가</h2>
+            <div id="reviewSummary" class="review-summary"><strong>☆☆☆☆☆</strong><span>평가를 불러오는 중…</span></div>
+            <div id="reviewList" class="review-list"></div>
+            <button class="pixel-button primary modal-close-button" type="button">닫기</button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="./vendor/supabase.min.js"></script>
+    <script src="./feedback.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
