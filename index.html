@@ -12,7 +12,7 @@
   <body>
     <main id="app" class="app-shell">
       <div id="gameViewport" class="game-viewport" aria-label="밥서라이크 게임 화면">
-        <canvas id="gameCanvas" width="225" height="400"></canvas>
+        <canvas id="gameCanvas" width="225" height="400" draggable="false"></canvas>
 
         <section id="hud" class="hud hidden" aria-label="게임 정보">
           <div class="hud-top">
@@ -73,11 +73,13 @@
         </section>
 
         <section id="levelUpScreen" class="screen level-screen hidden" aria-labelledby="levelUpTitle">
-          <div class="level-glow" aria-hidden="true"></div>
-          <p class="kicker">LEVEL UP!</p>
-          <h2 id="levelUpTitle">하나를 선택하고<br />다시 가볍게 출발하세요.</h2>
-          <div id="upgradeCards" class="upgrade-cards"></div>
-          <p class="number-hint">숫자키 1 · 2 · 3으로도 선택할 수 있어요.</p>
+          <div class="level-panel">
+            <div class="level-glow" aria-hidden="true"></div>
+            <p class="kicker">LEVEL UP!</p>
+            <h2 id="levelUpTitle">하나를 선택하고<br />다시 가볍게 출발하세요.</h2>
+            <div id="upgradeCards" class="upgrade-cards"></div>
+            <p class="number-hint">숫자키 1 · 2 · 3으로도 선택할 수 있어요.</p>
+          </div>
         </section>
 
         <section id="pauseScreen" class="screen dim-screen hidden" aria-labelledby="pauseTitle">
@@ -108,7 +110,7 @@
         </section>
 
         <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-        <div id="joystick" class="joystick hidden" aria-label="이동 조이스틱"><i id="joystickKnob"></i></div>
+        <div id="joystick" class="joystick hidden" aria-label="이동 조이스틱" aria-hidden="true"><i id="joystickKnob"></i></div>
 
         <section id="feedbackModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
           <div class="modal-card pixel-panel">

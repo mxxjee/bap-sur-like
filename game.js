@@ -15,6 +15,8 @@ const WORLD = Object.freeze({ width: 225, height: 400, duration: 180, maxEnemies
 const TAU = Math.PI * 2;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const isTypingTarget = target => target instanceof Element && Boolean(target.closest("input, textarea, select, button, [contenteditable='true']"));
+const isSelectableModalTarget = target => target instanceof Element && Boolean(target.closest(".modal-card, input, textarea, select, [contenteditable='true'], .review-item"));
 const formatTime = (seconds) => {
   const safe = Math.max(0, Math.ceil(seconds));
   return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
@@ -231,24 +233,42 @@ class UpgradeManager {
   apply(player,upgrade){upgrade.apply(player);player.upgradeLevels[upgrade.id]=(player.upgradeLevels[upgrade.id]||0)+1;}
 }
 
-/** Pointer ID 하나만 소유해 멀티터치가 이동 벡터를 덮어쓰지 않게 하는 가상 조이스틱. */
+/** 하단 플레이 영역의 최초 포인터 위치를 중심으로 삼는 단일 Pointer ID 조이스틱. */
 class VirtualJoystick {
-  constructor(element,knob){this.element=element;this.knob=knob;this.pointerId=null;this.vector={x:0,y:0};this.bind();}
+  constructor(surface,element,knob,canActivate){this.surface=surface;this.element=element;this.knob=knob;this.canActivate=canActivate;this.pointerId=null;this.vector={x:0,y:0};this.bind();}
   bind(){
-    this.element.addEventListener("pointerdown",e=>{if(this.pointerId!==null)return;this.pointerId=e.pointerId;this.element.setPointerCapture(e.pointerId);this.move(e);e.preventDefault();});
-    this.element.addEventListener("pointermove",e=>{if(e.pointerId!==this.pointerId)return;this.move(e);e.preventDefault();});
-    ["pointerup","pointercancel","lostpointercapture"].forEach(type=>this.element.addEventListener(type,e=>{if(e.pointerId===this.pointerId)this.reset();}));
+    this.surface.addEventListener("pointerdown",e=>this.start(e),{passive:false});
+    this.surface.addEventListener("pointermove",e=>{if(e.pointerId!==this.pointerId)return;this.move(e);e.preventDefault();},{passive:false});
+    ["pointerup","pointercancel","lostpointercapture"].forEach(type=>this.surface.addEventListener(type,e=>{if(e.pointerId===this.pointerId)this.reset();}));
   }
-  move(e){const rect=this.element.getBoundingClientRect(),knobRect=this.knob.getBoundingClientRect(),x=e.clientX-(rect.left+rect.width/2),y=e.clientY-(rect.top+rect.height/2),distance=Math.hypot(x,y),directionX=distance?x/distance:0,directionY=distance?y/distance:0,max=Math.max(1,(Math.min(rect.width,rect.height)-Math.max(knobRect.width,knobRect.height))/2),deadzone=max*.18,amount=Math.min(max,distance),intensity=distance<=deadzone?0:clamp((amount-deadzone)/(max-deadzone),0,1);this.vector={x:directionX*intensity,y:directionY*intensity};this.knob.style.transform=`translate(${directionX*amount}px,${directionY*amount}px)`;}
-  reset(){this.pointerId=null;this.vector={x:0,y:0};this.knob.style.transform="translate(0,0)";}
+  start(e){
+    if(this.pointerId!==null||!this.canActivate()||(e.pointerType==="mouse"&&e.button!==0))return;
+    const rect=this.surface.getBoundingClientRect(),localY=e.clientY-rect.top;
+    if(localY<rect.height*.5||this.isBlocked(e))return;
+    this.element.classList.remove("hidden");this.element.setAttribute("aria-hidden","false");
+    const joystickRect=this.element.getBoundingClientRect(),radius=Math.max(1,Math.max(joystickRect.width,joystickRect.height)/2),edge=4;
+    const safeBottom=parseFloat(getComputedStyle(this.surface).getPropertyValue("--safe-bottom"))||0;
+    const xpRect=document.querySelector("#hud .xp-wrap")?.getBoundingClientRect();
+    const minY=rect.height*.5+radius+edge,containerMaxY=rect.height-radius-edge-safeBottom;
+    const xpMaxY=xpRect?.height?xpRect.top-rect.top-radius-6:containerMaxY;
+    const centerX=clamp(e.clientX-rect.left,radius+edge,rect.width-radius-edge),centerY=clamp(localY,minY,Math.max(minY,Math.min(containerMaxY,xpMaxY)));
+    this.element.style.left=`${centerX}px`;this.element.style.top=`${centerY}px`;this.element.dataset.centerX=centerX.toFixed(1);this.element.dataset.centerY=centerY.toFixed(1);this.element.dataset.active="true";
+    this.pointerId=e.pointerId;this.surface.setPointerCapture(e.pointerId);this.move(e);e.preventDefault();
+  }
+  isBlocked(e){
+    if(isTypingTarget(e.target)||e.target instanceof Element&&e.target.closest(".screen:not(.hidden), .modal:not(.hidden), .hud-top, .hud-stats, .xp-wrap"))return true;
+    return [...this.surface.querySelectorAll("#hud .hud-top, #hud .hud-stats, #hud .xp-wrap")].some(element=>{const rect=element.getBoundingClientRect();return e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom;});
+  }
+  move(e){const rect=this.element.getBoundingClientRect(),knobRect=this.knob.getBoundingClientRect(),x=e.clientX-(rect.left+rect.width/2),y=e.clientY-(rect.top+rect.height/2),distance=Math.hypot(x,y),directionX=distance?x/distance:0,directionY=distance?y/distance:0,max=Math.max(1,(Math.min(rect.width,rect.height)-Math.max(knobRect.width,knobRect.height))/2),deadzone=max*.18,amount=Math.min(max,distance),intensity=distance<=deadzone?0:clamp((amount-deadzone)/(max-deadzone),0,1);this.vector={x:directionX*intensity,y:directionY*intensity};this.knob.style.transform=`translate(${directionX*amount}px,${directionY*amount}px)`;this.element.dataset.intensity=intensity.toFixed(3);}
+  reset(){const pointerId=this.pointerId;this.pointerId=null;this.vector={x:0,y:0};this.knob.style.transform="translate(0,0)";this.element.dataset.active="false";this.element.dataset.intensity="0.000";this.element.classList.add("hidden");this.element.setAttribute("aria-hidden","true");if(pointerId!==null&&this.surface.hasPointerCapture(pointerId))this.surface.releasePointerCapture(pointerId);}
 }
 
 /** 게임 월드, 상태 전환, 충돌, UI를 한 requestAnimationFrame 루프에서 조율한다. */
 class Game {
   constructor() {
-    this.canvas=document.querySelector("#gameCanvas"); this.ctx=this.canvas.getContext("2d"); this.ctx.imageSmoothingEnabled=false;
+    this.canvas=document.querySelector("#gameCanvas"); this.viewport=document.querySelector("#gameViewport"); this.ctx=this.canvas.getContext("2d"); this.ctx.imageSmoothingEnabled=false;
     this.audio=new AudioManager(); this.upgrades=new UpgradeManager(); this.keys=new Set(); this.state=GAME_STATE.MENU; this.previousPlayableState=null;
-    this.joystick=new VirtualJoystick(document.querySelector("#joystick"),document.querySelector("#joystickKnob")); this.cacheUI(); this.bindEvents(); this.resetWorld();
+    this.joystick=new VirtualJoystick(this.viewport,document.querySelector("#joystick"),document.querySelector("#joystickKnob"),()=>this.state===GAME_STATE.PLAYING); this.cacheUI(); this.bindEvents(); this.resetWorld();
     this.feedback=new window.FeedbackManager({version:GAME_VERSION,getGameStats:()=>this.getFeedbackStats(),onOpen:()=>this.pauseForModal(),onClose:()=>this.resumeFromModal(),onSound:name=>this.audio.play(name)});
     this.lastTime=performance.now(); this.loop=this.loop.bind(this); requestAnimationFrame(this.loop); window.bapGame=this;
   }
@@ -265,10 +285,12 @@ class Game {
     document.getElementById("restartResultButton").addEventListener("click",()=>this.start());
     this.ui.pauseToggle.addEventListener("click",()=>this.togglePause());
     this.ui.soundToggle.addEventListener("click",()=>{const enabled=this.ui.soundToggle.getAttribute("aria-pressed")!=="true";this.audio.setEnabled(enabled);this.ui.soundToggle.setAttribute("aria-pressed",String(enabled));this.ui.soundToggle.setAttribute("aria-label",enabled?"사운드 끄기":"사운드 켜기");this.audio.play("button");});
-    window.addEventListener("keydown",e=>this.onKeyDown(e)); window.addEventListener("keyup",e=>this.keys.delete(e.key.toLowerCase()));
-    document.addEventListener("contextmenu",e=>e.preventDefault());
+    window.addEventListener("keydown",e=>this.onKeyDown(e)); window.addEventListener("keyup",e=>{if(isTypingTarget(e.target)){this.keys.clear();return;}this.keys.delete(e.key.toLowerCase());});
+    this.viewport.addEventListener("contextmenu",e=>{if(!isSelectableModalTarget(e.target))e.preventDefault();});
+    this.viewport.addEventListener("dragstart",e=>{if(!isSelectableModalTarget(e.target))e.preventDefault();});
   }
   onKeyDown(event){
+    if(isTypingTarget(event.target)){this.keys.clear();return;}
     const key=event.key.toLowerCase(); if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(key))event.preventDefault(); this.keys.add(key);
     if((key==="escape"||key==="p")&&(this.state===GAME_STATE.PLAYING||this.state===GAME_STATE.PAUSED)){event.preventDefault();this.togglePause();}
     if(this.state===GAME_STATE.LEVEL_UP&&["1","2","3"].includes(key)){const card=this.ui.upgradeCards.children[Number(key)-1];card?.click();}
@@ -278,16 +300,16 @@ class Game {
     this.player=new Player();this.enemies=[];this.projectiles=[];this.foods=[];this.particles=[];this.elapsed=0;this.kills=0;this.spawnTimer=.4;this.shake=0;this.toastTimer=0;this.levelChoiceLocked=false;this.lastResult="none";
   }
   start(){
-    this.audio.play("button");this.resetWorld();this.state=GAME_STATE.PLAYING;this.hideScreens();this.ui.hud.classList.remove("hidden");this.ui.joystick.classList.remove("hidden");this.lastTime=performance.now();this.updateHUD();
+    this.audio.play("button");this.keys.clear();this.resetWorld();this.state=GAME_STATE.PLAYING;this.hideScreens();this.ui.hud.classList.remove("hidden");this.joystick.reset();this.lastTime=performance.now();this.updateHUD();
   }
   toMenu(){
-    this.audio.play("button");this.state=GAME_STATE.MENU;this.resetWorld();this.hideScreens();this.ui.menuScreen.classList.remove("hidden");this.ui.hud.classList.add("hidden");this.ui.joystick.classList.add("hidden");this.joystick.reset();this.feedback.refreshSummary();
+    this.audio.play("button");this.keys.clear();this.state=GAME_STATE.MENU;this.resetWorld();this.hideScreens();this.ui.menuScreen.classList.remove("hidden");this.ui.hud.classList.add("hidden");this.ui.joystick.classList.add("hidden");this.joystick.reset();this.feedback.refreshSummary();
   }
   hideScreens(){[this.ui.menuScreen,this.ui.controlsScreen,this.ui.levelUpScreen,this.ui.pauseScreen,this.ui.resultScreen].forEach(screen=>screen.classList.add("hidden"));}
-  pause(){if(this.state!==GAME_STATE.PLAYING)return;this.state=GAME_STATE.PAUSED;this.ui.pauseScreen.classList.remove("hidden");this.joystick.reset();}
+  pause(){if(this.state!==GAME_STATE.PLAYING)return;this.state=GAME_STATE.PAUSED;this.ui.pauseScreen.classList.remove("hidden");this.keys.clear();this.joystick.reset();}
   resume(){if(this.state!==GAME_STATE.PAUSED)return;this.audio.play("button");this.state=GAME_STATE.PLAYING;this.ui.pauseScreen.classList.add("hidden");this.lastTime=performance.now();}
   togglePause(){if(this.state===GAME_STATE.PLAYING)this.pause();else if(this.state===GAME_STATE.PAUSED)this.resume();}
-  pauseForModal(){if(this.state===GAME_STATE.PLAYING){this.previousPlayableState=GAME_STATE.PLAYING;this.state=GAME_STATE.PAUSED;}else this.previousPlayableState=null;}
+  pauseForModal(){this.keys.clear();this.joystick.reset();if(this.state===GAME_STATE.PLAYING){this.previousPlayableState=GAME_STATE.PLAYING;this.state=GAME_STATE.PAUSED;}else this.previousPlayableState=null;}
   resumeFromModal(){if(this.previousPlayableState===GAME_STATE.PLAYING&&this.state===GAME_STATE.PAUSED){this.state=GAME_STATE.PLAYING;this.lastTime=performance.now();}this.previousPlayableState=null;}
   loop(now){const dt=Math.min(.033,Math.max(0,(now-this.lastTime)/1000));this.lastTime=now;if(this.state===GAME_STATE.PLAYING)this.update(dt);this.draw();requestAnimationFrame(this.loop);}
   inputVector(){return {x:(this.keys.has("d")||this.keys.has("arrowright")?1:0)-(this.keys.has("a")||this.keys.has("arrowleft")?1:0)+this.joystick.vector.x,y:(this.keys.has("s")||this.keys.has("arrowdown")?1:0)-(this.keys.has("w")||this.keys.has("arrowup")?1:0)+this.joystick.vector.y};}
@@ -338,7 +360,7 @@ class Game {
   }
   onBodyStageChanged(stage){if(this.player.bodyStage===0)return;this.showToast(stage.message,1.7);this.shake=2.5;this.audio.play("grow");}
   beginLevelUp(){
-    if(this.state!==GAME_STATE.PLAYING)return;this.state=GAME_STATE.LEVEL_UP;this.levelChoiceLocked=false;this.joystick.reset();this.audio.play("level");this.shake=0;this.createLevelParticles();
+    if(this.state!==GAME_STATE.PLAYING)return;this.state=GAME_STATE.LEVEL_UP;this.levelChoiceLocked=false;this.keys.clear();this.joystick.reset();this.audio.play("level");this.shake=0;this.createLevelParticles();
     const choices=this.upgrades.choices(this.player);this.ui.upgradeCards.replaceChildren();
     if(!choices.length){this.completeUpgrade(null);return;}
     choices.forEach((upgrade,index)=>{const button=document.createElement("button");button.type="button";button.className="upgrade-card";button.dataset.upgrade=upgrade.id;
@@ -353,7 +375,7 @@ class Game {
   }
   beginNextQueuedLevel(){this.state=GAME_STATE.PLAYING;this.beginLevelUp();}
   finish(victory){
-    this.state=victory?GAME_STATE.VICTORY:GAME_STATE.GAME_OVER;this.lastResult=victory?"victory":"defeat";this.ui.hud.classList.add("hidden");this.ui.joystick.classList.add("hidden");this.joystick.reset();
+    this.state=victory?GAME_STATE.VICTORY:GAME_STATE.GAME_OVER;this.lastResult=victory?"victory":"defeat";this.keys.clear();this.ui.hud.classList.add("hidden");this.ui.joystick.classList.add("hidden");this.joystick.reset();
     this.ui.toast.classList.add("hidden");this.toastTimer=0;
     document.getElementById("resultKicker").textContent=victory?"VICTORY!":"GAME OVER";document.getElementById("resultTitle").textContent=victory?"무한리필에서\n살아남았습니다!":"배가 터지기 전에\n쓰러졌습니다!";
     document.getElementById("resultTime").textContent=formatTime(victory?WORLD.duration:this.elapsed);document.getElementById("resultKills").textContent=String(this.kills);document.getElementById("resultLevel").textContent=String(this.player.level);document.getElementById("resultBody").textContent=BODY_STAGES[this.player.maxBodyStage].name;
