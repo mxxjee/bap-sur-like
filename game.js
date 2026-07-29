@@ -186,13 +186,14 @@ const BODY_STAGES = Object.freeze([
 class Player {
   constructor() { this.reset(); }
   reset() {
-    this.x=WORLD.width/2; this.y=WORLD.height/2; this.maxHp=100; this.hp=100; this.baseSpeed=180; this.damage=10;
+    this.x=WORLD.width/2; this.y=WORLD.height/2; this.maxHp=100; this.hp=100; this.baseSpeed=180; this.baseAttack=10; this.attackUpgradeBonus=0;
     this.attackInterval=.8; this.projectileCount=1; this.projectileSpeed=350; this.projectileScale=1; this.projectileLife=1.2;
     this.magnetRange=50; this.baseRadius=6; this.currentScale=1; this.targetScale=1; this.bodySpeedMultiplier=1; this.bodyStage=0; this.maxBodyStage=0;
     this.level=1; this.xp=0; this.bodyProgress=0; this.attackTimer=.35; this.invincible=0; this.walkTime=0; this.lastMoving=false; this.eatPulse=0;
     this.upgradeLevels={}; this.pendingLevels=0;
   }
   get requiredXp() { return Math.round(10*Math.pow(1.25,this.level-1)); }
+  get damage() { return this.baseAttack+(this.level-1)*3+this.bodyStage+this.attackUpgradeBonus; }
   get collisionRadius() { return this.baseRadius*this.currentScale; }
   get moveSpeed() { return this.baseSpeed*this.bodySpeedMultiplier; }
   update(dt,input) {
@@ -213,7 +214,7 @@ class Player {
 }
 
 const UPGRADES = Object.freeze([
-  { id:"damage", name:"날카로운 포크", description:"공격력이\n25% 증가합니다.", max:8, colors:["#dce8e8","#f5fafa"], apply:p=>p.damage*=1.25 },
+  { id:"damage", name:"날카로운 포크", description:"공격력이\n25% 증가합니다.", max:8, colors:["#dce8e8","#f5fafa"], apply:p=>p.attackUpgradeBonus=(p.baseAttack+p.attackUpgradeBonus)*1.25-p.baseAttack },
   { id:"haste", name:"빠른 식사", description:"공격 간격이\n15% 감소합니다.", max:8, colors:["#f0714f","#ffd05e"], apply:p=>p.attackInterval=Math.max(.2,p.attackInterval*.85) },
   { id:"count", name:"포크 한 개 더", description:"한 번에 발사하는\n포크가 1개 증가합니다.", max:4, colors:["#dce8e8","#9cc8d6"], apply:p=>p.projectileCount=Math.min(5,p.projectileCount+1) },
   { id:"size", name:"커다란 포크", description:"투사체 크기가\n20% 증가합니다.", max:6, colors:["#e9ecdf","#b0a7dc"], apply:p=>p.projectileScale*=1.2 },
